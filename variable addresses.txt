@@ -1,0 +1,6 @@
+A82A = 43050 (Itx_qe_1)
+A828 = 43048 (Itx_de_1)
+A86C = 43116 (Itx_ds)
+A86A = 43114 (Itx_qs)
+A842 = 43074 (Itx_mag)
+A84C = 43084 (Itx_mag_flt)
