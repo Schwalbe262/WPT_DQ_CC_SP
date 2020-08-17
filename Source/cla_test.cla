@@ -1,0 +1,346 @@
+/*
+ * cla_test.cla
+ *
+ *  Created on: 22 Sep 2017
+ *      Author: Polar
+ */
+#include "cla_test.h"
+//.cdecls C,LIST,"CLAmathLib_type0.h"
+//#include "CLASinCosTable.asm"
+
+Uint16 cla_task1_cnt;
+Uint16 cla_task8_cnt;
+Uint16 cla_flag;
+Uint16 flag_err;
+
+// Task 1 :
+
+/*
+__interrupt void Cla1Task1(void)	//8 sampling code
+{
+	dq.Ids[dq.Ids_cnt] = (float)(AdcaResultRegs.ADCRESULT0 - cpu.adc_offset) * 0.0083f;		// 4.98 = 2.66(gain) * 1.875(error compensation), 4.98 * 0.0008(3.3/4096) = 0.003984
+	//PI = 3.1415926, PI/2 = 1.5707963, PI/4 = 0.7853981
+	dq.theta = (0.78539f*dq.Ids_cnt)-0.78539f;		//0.7853981 = 2PI/8
+	if(dq.Ids_cnt > 5){							//set up Iqs counter: pi/2 phase shift to the Ids_cnt
+		dq.Iqs_cnt = (dq.Ids_cnt - 6);
+	}
+	else{
+		dq.Iqs_cnt = (dq.Ids_cnt + 2);
+	}
+	dq.Iqs[dq.Iqs_cnt] = dq.Ids[dq.Ids_cnt];
+	dq.Ide = CLAsin(dq.theta) * dq.Ids[dq.Ids_cnt] - CLAcos(dq.theta) * dq.Iqs[dq.Ids_cnt];		//Ide output
+	dq.Iqe = CLAcos(dq.theta) * dq.Ids[dq.Ids_cnt] + CLAsin(dq.theta) * dq.Iqs[dq.Ids_cnt];		//Iqe output
+	dq.Ids_cnt = (dq.Ids_cnt + 1) & 0x07;
+}
+*/
+__interrupt void Cla1Task1(void)	//12 sampling code
+{
+	//GpioDataRegs.GPBDAT.bit.GPIO44 ^= 1;
+	//dq.Ids[dq.Ids_cnt] = (float)(AdcaResultRegs.ADCRESULT0) * 0.008516f - 7.482f;		// 4.98 = 2.66(gain) * 1.875(error compensation), 4.98 * 0.0008(3.3/4096) = 0.003984
+	dq.Ids[dq.Ids_cnt] = (float)(AdcaResultRegs.ADCRESULT0) * 0.008713 - 16.07;		// 4.98 = 2.66(gain) * 1.875(error compensation), 4.98 * 0.0008(3.3/4096) = 0.003984
+	//dq.Idss[dq.Ids_cnt] = (float)(AdcaResultRegs.ADCRESULT1) * 0.009753f - 18.26f;		// 4.98 = 2.66(gain) * 1.875(error compensation), 4.98 * 0.0008(3.3/4096) = 0.003984
+
+	dq.theta = (0.7853981 * dq.Ids_cnt) - 1.935f;		//0.7853981 = 2PI/8
+	// dq.theta = (0.7853981 * dq.Ids_cnt) -1.4f;		//0.7853981 = 2PI/8
+	//dq.thetaa = (0.7853981 * dq.Ids_cnt) - 2.1f;		//tuned
+
+	if(dq.Ids_cnt >= 6){							//set up Iqs counter: pi/2 phase shift to the Ids_cnt
+		dq.Iqs_cnt = (dq.Ids_cnt - 6);
+	}
+	else{
+		dq.Iqs_cnt = (dq.Ids_cnt + 2);
+	}
+
+	dq.Iqs[dq.Iqs_cnt] = dq.Ids[dq.Ids_cnt];
+	//dq.Iqss[dq.Iqs_cnt] = dq.Idss[dq.Ids_cnt];
+	dq.Itx_de = CLAsin(dq.theta) * dq.Ids[dq.Ids_cnt] - CLAcos(dq.theta) * dq.Iqs[dq.Ids_cnt];		//Ide output
+	//dq.Irx_de = CLAsin(dq.thetaa) * dq.Idss[dq.Ids_cnt] - CLAcos(dq.thetaa) * dq.Iqss[dq.Ids_cnt];
+	dq.Itx_qe = CLAcos(dq.theta) * dq.Ids[dq.Ids_cnt] + CLAsin(dq.theta) * dq.Iqs[dq.Ids_cnt];		//Iqe output
+
+	dq.Itx_mag = CLAsqrt(dq.Itx_de * dq.Itx_de + dq.Itx_qe * dq.Itx_qe);
+	//dq.Irx_qe = CLAcos(dq.thetaa) * dq.Idss[dq.Ids_cnt] + CLAsin(dq.thetaa) * dq.Iqss[dq.Ids_cnt];
+	dq.Ids_cnt = (dq.Ids_cnt + 1) & 0x07;
+
+	//if(dq.Ids_cnt == 2) GpioDataRegs.GPBDAT.bit.GPIO44 ^= 1;
+
+
+	/*
+	dq.Ids[dq.Ids_cnt] = (float)(AdcaResultRegs.ADCRESULT0) * 0.008516f - 7.482f;		// 4.98 = 2.66(gain) * 1.875(error compensation), 4.98 * 0.0008(3.3/4096) = 0.003984
+	dq.Idss[dq.Ids_cnt] = (float)(AdcaResultRegs.ADCRESULT1) * 0.009753f - 18.26f;		// 4.98 = 2.66(gain) * 1.875(error compensation), 4.98 * 0.0008(3.3/4096) = 0.003984
+
+	//dq.thetaa = (0.5235987*dq.Ids_cnt)-5.7596f; //when  cnt = 11
+	//dq.theta = (0.5235987*dq.Ids_cnt)-5.236f; //when  cnt = 10
+	//dq.theta = (0.5235987*dq.Ids_cnt)-4.7124f; //when  cnt = 9
+	//dq.theta = (0.5235987*dq.Ids_cnt)-4.1888f; //when  cnt = 8
+	//dq.thetaa = (0.5235987*dq.Ids_cnt)-3.6652f; //when  cnt = 7
+	dq.theta = (0.5235987*dq.Ids_cnt)-3.4036f; //when  cnt = 6.5 Irx_qe의 각
+	//dq.thetaa = (0.5235987*dq.Ids_cnt)-3.1416f; //when  cnt = 6
+	//dq.thetaa = (0.5235987*dq.Ids_cnt)-2.88f; //when  cnt = 5.5
+	//dq.thetaa = (0.5235987*dq.Ids_cnt)-2.618f; //when  cnt = 5
+	dq.thetaa = (0.5235987*dq.Ids_cnt)-2.1f; //when  cnt = 4.25 Irx_de의 각과 비슷
+	//dq.thetaa = (0.5235987*dq.Ids_cnt)-2.0944f; //when  cnt = 4
+	//dq.thetaa = (0.5235987*dq.Ids_cnt)-1.8328f; //when  cnt = 3.5
+	//dq.theta = (0.5235987*dq.Ids_cnt)-1.5708f; //when  cnt = 3
+	//dq.thetaa = (0.5235987 * dq.Ids_cnt)-1.0472f; //when  cnt = 2
+	//dq.thetaa = dq.theta;
+	//dq.theta = (0.5235987*dq.Ids_cnt)-0.5236f; //when  cnt = 1
+	//dq.theta = 0.5235987*dq.Ids_cnt; //when  cnt = 0
+
+	if(dq.Ids_cnt >= 9){							//set up Iqs counter: pi/2 phase shift to the Ids_cnt
+		dq.Iqs_cnt = (dq.Ids_cnt - 9);				//Iqs_cnt[9] = Ids_cnt[0] 'means' Iqs_cnt[3pi/2] = Ids_cnt[0]
+	}
+	else{
+		dq.Iqs_cnt = (dq.Ids_cnt + 3);				//Iqs_cnt[0] = Ids_cnt[3] 'means' Iqs_cnt[pi/2] = Ids_cnt[0]
+	}
+
+	dq.Iqs[dq.Iqs_cnt] = dq.Ids[dq.Ids_cnt];
+	dq.Iqss[dq.Iqs_cnt] = dq.Idss[dq.Ids_cnt];
+	dq.Itx_de = CLAsin(dq.theta) * dq.Ids[dq.Ids_cnt] - CLAcos(dq.theta) * dq.Iqs[dq.Ids_cnt];		//Ide output
+	dq.Irx_de = CLAsin(dq.thetaa) * dq.Idss[dq.Ids_cnt] - CLAcos(dq.thetaa) * dq.Iqss[dq.Ids_cnt];
+	dq.Itx_qe = CLAcos(dq.theta) * dq.Ids[dq.Ids_cnt] + CLAsin(dq.theta) * dq.Iqs[dq.Ids_cnt];		//Iqe output
+	dq.Irx_qe = CLAcos(dq.thetaa) * dq.Idss[dq.Ids_cnt] + CLAsin(dq.thetaa) * dq.Iqss[dq.Ids_cnt];
+	dq.Ids_cnt ++;
+
+	if(dq.Ids_cnt > 11){		//Initialization of Ids_cnt : error part
+		dq.Ids_cnt = 0;
+	}
+	*/
+
+
+
+}
+
+//ver fsam = fsw * 8
+/*
+	//GpioDataRegs.GPBDAT.bit.GPIO44 ^= 1;
+	dq.Ids[dq.Ids_cnt] = (float)(AdcaResultRegs.ADCRESULT0 - cpu.adc_offset) * 0.003984f;		// 4.98 = 2.66(gain) * 1.875(error compensation), 4.98 * 0.0008(3.3/4096) = 0.003984
+	//PI = 3.1415926, PI/2 = 1.5707963, PI/4 = 0.7853981
+	dq.theta = (0.7853981*dq.Ids_cnt)-1.5707963;		//0.7853981 = 2PI/8
+	if(dq.Ids_cnt > 5){							//set up Iqs counter: pi/2 phase shift to the Ids_cnt
+		dq.Iqs_cnt = (dq.Ids_cnt - 6);
+	}
+	else{
+		dq.Iqs_cnt = (dq.Ids_cnt + 2);
+	}
+	dq.Iqs[dq.Iqs_cnt] = dq.Ids[dq.Ids_cnt];
+	dq.Ide = CLAsin(dq.theta) * dq.Ids[dq.Ids_cnt] - CLAcos(dq.theta) * dq.Iqs[dq.Ids_cnt];		//Ide output
+	dq.Iqe = CLAcos(dq.theta) * dq.Ids[dq.Ids_cnt] + CLAsin(dq.theta) * dq.Iqs[dq.Ids_cnt];		//Iqe output
+	dq.Ids_cnt = (dq.Ids_cnt + 1) & 0x07;
+ */
+
+//ver fsam = fsw * 12
+/*
+dq.Ids[dq.Ids_cnt] = (float)(AdcaResultRegs.ADCRESULT0 - cpu.adc_offset) * 0.003984f;		// 4.98 = 2.66(gain) * 1.875(error compensation), 4.98 * 0.0008(3.3/4096) = 0.003984
+dq.theta = (0.5235987*dq.Ids_cnt)-1.5707963;		//0.5235987 = 2PI/12
+if(dq.Ids_cnt >= 9){							//set up Iqs counter: pi/2 phase shift to the Ids_cnt
+	dq.Iqs_cnt = (dq.Ids_cnt - 9);				//Iqs_cnt[9] = Ids_cnt[0] 'means' Iqs_cnt[3pi/2] = Ids_cnt[0]
+}
+else{
+	dq.Iqs_cnt = (dq.Ids_cnt + 3);				//Iqs_cnt[0] = Ids_cnt[3] 'means' Iqs_cnt[pi/2] = Ids_cnt[0]
+}
+dq.Iqs[dq.Iqs_cnt] = dq.Ids[dq.Ids_cnt];
+dq.Ide = CLAsin(dq.theta) * dq.Ids[dq.Ids_cnt] - CLAcos(dq.theta) * dq.Iqs[dq.Ids_cnt];		//Ide output
+dq.Iqe = CLAcos(dq.theta) * dq.Ids[dq.Ids_cnt] + CLAsin(dq.theta) * dq.Iqs[dq.Ids_cnt];		//Iqe output
+dq.Ids_cnt++;
+if(dq.Ids_cnt > 11){		//Initialization of Ids_cnt : error part
+	dq.Ids_cnt = 0;
+}
+*/
+
+//ver TBPRD, TBCTR
+/*
+//getting ADC
+dq.Ids[dq.Ids_cnt] = (float)(AdcaResultRegs.ADCRESULT0 - cpu.adc_offset) * 0.003984f;		// 4.98 = 2.66(gain) * 1.875(error compensation), 4.98 * 0.0008(3.3/4096) = 0.003984
+//getting slope
+dq.TBCTR = cpu.TBCTR;
+dq.TBCTR_diff = dq.TBCTR - dq.TBCTR_pre;
+dq.slope = 3.1415 * dq.TBCTR * cpu.inv_TBPRD;
+//getting theta
+if(dq.TBCTR <= 10){
+	if(dq.TBCTR_diff > 0){
+		dq.theta = dq.slope - 1.5707963;
+	}
+	else if(dq.TBCTR_diff < 0){
+		dq.theta = -dq.slope + 4.7123889;
+	}
+	else{
+		flag_err += 1;
+		dq.TBCTR = cpu.TBCTR;
+		dq.TBCTR_diff = dq.TBCTR - dq.TBCTR_pre;
+		dq.slope = 3.1415 * dq.TBCTR * cpu.inv_TBPRD;
+		while(dq.TBCTR_diff == 0){}
+		if(dq.TBCTR_diff > 0){
+			dq.theta = dq.slope - 1.5707963;
+			flag_err -= 1;
+		}
+		else if(dq.TBCTR_diff < 0){
+			dq.theta = -dq.slope + 4.7123889;
+			flag_err -= 1;
+		}
+	}
+}
+else{
+	//3.1415926, 1.5707963
+	dq.theta = (0.5235987*dq.Ids_cnt)-1.5707963;		//0.5235987 = 2PI/12
+}
+if(dq.Ids_cnt >= 9){							//set up Iqs counter: pi/2 phase shift to the Ids_cnt
+	dq.Iqs_cnt = (dq.Ids_cnt - 9);				//Iqs_cnt[9] = Ids_cnt[0] 'means' Iqs_cnt[3pi/2] = Ids_cnt[0]
+}
+else{
+	dq.Iqs_cnt = (dq.Ids_cnt + 3);				//Iqs_cnt[0] = Ids_cnt[3] 'means' Iqs_cnt[pi/2] = Ids_cnt[0]
+}
+dq.Iqs[dq.Iqs_cnt] = dq.Ids[dq.Ids_cnt];
+if(flag_err != 1){
+	dq.Ide = CLAsin(dq.theta) * dq.Ids[dq.Ids_cnt] - CLAcos(dq.theta) * dq.Iqs[dq.Ids_cnt];		//Ide output
+	dq.Iqe = CLAcos(dq.theta) * dq.Ids[dq.Ids_cnt] + CLAsin(dq.theta) * dq.Iqs[dq.Ids_cnt];		//Iqe output
+	dq.TBCTR_pre = dq.TBCTR;
+}
+flag_err = 0;
+dq.Ids_cnt++;
+if(dq.Ids_cnt > 11){		//Initialization of Ids_cnt : error part
+	dq.Ids_cnt = 0;
+}
+*/
+/*
+__interrupt void Cla1Task1(void)
+{
+	//__mdebugstop();
+	GpioDataRegs.GPBDAT.bit.GPIO44 ^= 1;			//GPIO toggle for the test of synchronization with EPWM1
+
+	//dq.Ids[dq.Ids_cnt] = 3.3f * (AdcaResultRegs.ADCRESULT0 - 2042.f) / 4096.f;
+	dq.Ids[dq.Ids_cnt] = AdcaResultRegs.ADCRESULT0 - 2042.f;				//Ids value -> be used to DAC output
+	dq.Ids_sampling[dq.sampling_cnt] = AdcaResultRegs.ADCRESULT0 - 2042.f;	//Ids value -> be used to check the 1-cycle Ids ADC value
+
+	if(dq.Ids_cnt >= 9){							//set up Iqs counter: pi/2 phase shift to the Ids_cnt
+		dq.Iqs_cnt = (dq.Ids_cnt - 9);				//Iqs_cnt[9] = Ids_cnt[0] 'means' Iqs_cnt[3pi/2] = Ids_cnt[0]
+	}
+	else{
+		dq.Iqs_cnt = (dq.Ids_cnt + 3);				//Iqs_cnt[0] = Ids_cnt[3] 'means' Iqs_cnt[pi/2] = Ids_cnt[0]
+	}
+
+	dq.Iqs[dq.Iqs_cnt] = dq.Ids[dq.Ids_cnt];		//Iqs = pi/2 phase shift of Ids
+
+	dq.Ide = CLAsin(2*dq.Ids_cnt*PI/12) * dq.Ids[dq.Ids_cnt] - CLAcos(2*dq.Ids_cnt*PI/12) * dq.Iqs[dq.Ids_cnt];		//Ide output
+	dq.Iqe = CLAcos(2*dq.Ids_cnt*PI/12) * dq.Ids[dq.Ids_cnt] + CLAsin(2*dq.Ids_cnt*PI/12) * dq.Iqs[dq.Ids_cnt];		//Iqe output
+
+	dq.Ids_cnt++;
+	if(dq.Ids_cnt >= 12){		//Initialization of Ids_cnt : error part
+		dq.Ids_cnt = 0;
+	}
+	dq.sampling_cnt++;			//counter for 1 cycle sampling
+	if(dq.sampling_cnt >=12){
+		dq.sampling_cnt = 12;
+	}
+}
+*/
+	//cla_task1_cnt = (cla_task1_cnt + 1) & 0x07;
+
+__interrupt void Cla1Task2(void)
+{
+
+}
+
+__interrupt void Cla1Task3(void)
+{
+
+}
+
+__interrupt void Cla1Task4(void)
+{
+
+}
+
+__interrupt void Cla1Task5(void)
+{
+
+}
+
+__interrupt void Cla1Task6(void)
+{
+
+}
+
+__interrupt void Cla1Task7(void)
+{
+
+}
+
+__interrupt void Cla1Task8(void)
+{
+	/*
+	Obr.Iqrh_err = Obr.Iqrh - Obr.Iqrhh;	//check
+	Iqrh_cmd_integ += Ki_qro * Tsamp * Iqrh_err; //check
+	VqrL = Kp_qro * Iqrh_err + Iqrh_cmd_integ; //check
+	RLq = VqrL / Iqrh;
+	Idth_ff2 = temp_Itx_qe * OmegaM; //Iqt feed forward
+	Idrh_ff = Idrh * Irx_qe_factor;
+	Vqrhh = VqrL + Idth_ff2 + Idrh_ff - Iqrhh * Rrx; //Vtx command addition (Vtx_cmd_prop + Vtx_cmd_integ)
+	//Vdth = Kp_ob * Idth_err + Idth_cmd_integ; //Vtx command addition (Vtx_cmd_prop + Vtx_cmd_integ)
+	Iqrhh += Vqrhh * Leq_rx * Tsamp;
+	 */
+}
+
+//ADC software force code of CLA
+/*
+AdcbRegs.ADCSOCFRC1.all = 0x0003;
+while(AdcbRegs.ADCINTFLG.bit.ADCINT1 == 0);
+AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
+AdcbResult0 = AdcbResultRegs.ADCRESULT0;
+*/
+
+//GpioDataRegs.GPATOGGLE.bit.GPIO31 = 1;
+/*
+if(cla_task1_cnt == 1){
+	AdcbRegs.ADCSOCFRC1.all = 0x0003;
+	while(AdcbRegs.ADCINTFLG.bit.ADCINT1 == 0);
+	AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
+	AdcbResult0 = AdcbResultRegs.ADCRESULT0;
+	raw_a[0] = AdcbResult0;
+}
+
+else if(cla_task1_cnt == 2){
+	AdcbRegs.ADCSOCFRC1.all = 0x0003;
+	while(AdcbRegs.ADCINTFLG.bit.ADCINT1 == 0);
+	AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
+	AdcbResult0 = AdcbResultRegs.ADCRESULT0;
+	raw_a[1] = AdcbResult0;
+}
+
+if(cla_task1_cnt == 3){
+	{
+		AdcbRegs.ADCSOCFRC1.all = 0x0003;
+		while(AdcbRegs.ADCINTFLG.bit.ADCINT1 == 0);
+		AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;
+		AdcbResult0 = AdcbResultRegs.ADCRESULT0;
+		raw_a[2] = AdcbResult0;
+	}
+
+	{
+		Uint16 temp;
+		if (raw_a[0] < raw_a[1]) {
+			temp = raw_a[0];
+			raw_a[0] = raw_a[1];
+			raw_a[1] = temp;
+		}
+		if (raw_a[0] < raw_a[2]) {
+			temp = raw_a[0];
+			raw_a[0] = raw_a[2];
+			raw_a[2] = temp;
+		}
+		if (raw_a[1] < raw_a[2]) {
+			temp = raw_a[1];
+			raw_a[1] = raw_a[2];
+			raw_a[2] = temp;
+		}
+	}
+}
+adc_data_a = raw_a[1];
+*/
+/*
+if(cla_task1_cnt == 1000){
+	GpioDataRegs.GPBTOGGLE.bit.GPIO34 = 1;
+}
+*/
+//cla_task1_cnt++;
+
+// End of file
