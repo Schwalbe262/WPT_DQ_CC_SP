@@ -1,0 +1,20 @@
+[Basic Page]
+m_strPrjFileName = C:\Users\UoS_PEETS\workspace_v6_2\wpt_v3\wpt_v1.ezd
+m_strOutFileName = C:\Users\UoS_PEETS\workspace_v6_2\wpt_v3\Debug\wpt_v1.out
+m_strOut2FileName = 
+m_strCoffFileName = C:\Users\UoS_PEETS\workspace_v6_2\wpt_v3\Debug\wpt_v1.out
+m_strDSPType = TMS320F28377S
+m_strCommPort = SCI
+[Parallel & RS232 Port]
+m_strProtocol = Normal
+[USB Port]
+m_uBPS = 115200
+m_uWaitMoreMicroTime = 1000
+m_uOscClkFreq = 30
+m_bBluetoothEnabled = 0
+[Miscellaneous]
+m_bVariableAutoSeek = 1
+m_bStopWhenSuccessiveFail = 0
+m_strEditor = 
+[Project Information]
+m_uVersion = 852
